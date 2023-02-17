@@ -1,41 +1,50 @@
-import struct
+import moderngl_window as mglw
 import moderngl
+import numpy as np
+import effect1.shader
 
-ctx = moderngl.create_context(standalone=True)
+class Back2Basic(mglw.WindowConfig):
+    gl_version = (3, 3)
 
-program = ctx.program(
-    vertex_shader="""
-    #version 330
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.currentShader = effect1.shader.getShader(self.ctx)
+        x = np.linspace(-1.0, 1.0, 50)
+        y = np.random.rand(50) - 0.5
+        r = np.ones(50)
+        g = np.zeros(50)
+        b = np.zeros(50)
+        t = np.zeros(50)
 
-    // Output values for the shader. They end up in the buffer.
-    out float value;
-    out float product;
+        self.vertices = np.dstack([x, y, r, g, b, t])
+        self.vbo = self.ctx.buffer(self.vertices.astype('f4').tobytes())
+        self.vao = self.ctx.vertex_array(self.currentShader, [
+            (self.vbo, "2f 3f 1f", 'in_vert', 'in_color', 'in_time')
+        ])
 
-    void main() {
-        // Implicit type conversion from int to float will happen here
-        value = gl_VertexID;
-        product = gl_VertexID * gl_VertexID;
-    }
-    """,
-    # What out varyings to capture in our buffer!
-    varyings=["value", "product"],
-)
+    def render(self, time, frametime):
+        self.ctx.clear(0.0, 0.0, 0.0, 1.0)
+        self.vao.render(moderngl.LINE_STRIP)
 
-NUM_VERTICES = 10
+        self.vertices[0, :, 5] = np.repeat(time, 50)
+        self.vbo = self.ctx.buffer(self.vertices.astype('f4').tobytes())
+        self.vao = self.ctx.vertex_array(self.currentShader, [
+            (self.vbo, "2f 3f 1f", 'in_vert', 'in_color', 'in_time')
+        ])
+        # if(self.scheduler(time)):
+        #     print("finished")
+        #     exit()
 
-# We always need a vertex array in order to execute a shader program.
-# Our shader doesn't have any buffer inputs, so we give it an empty array.
-vao = ctx.vertex_array(program, [])
+    def scheduler(self, time):
+        if(time < 4):
+            print("Effect 1")
+        elif(time >= 4 and time < 8):
+            print("Effect2")
+        elif(time >= 8 and time < 10 ):
+            print("effect 3")
+        else:
+            return True
 
-# Create a buffer allocating room for 20 32 bit floats
-buffer = ctx.buffer(reserve=NUM_VERTICES * 8)
+        return False
 
-# Start a transform with buffer as the destination.
-# We force the vertex shader to run 10 times
-vao.transform(buffer, vertices=NUM_VERTICES)
-
-# Unpack the 20 float values from the buffer (copy from graphics memory to system memory).
-# Reading from the buffer will cause a sync (the python program stalls until the shader is done)
-data = struct.unpack("20f", buffer.read())
-for i in range(0, 20, 2):
-    print("value = {}, product = {}".format(*data[i:i+2]))
+Back2Basic.run()

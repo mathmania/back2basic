@@ -5,6 +5,10 @@ name = "pypi"
 
 [packages]
 moderngl = "*"
+numpy = "*"
+pillow = "*"
+moderngl-window = "*"
+pygame = "*"
 
 [dev-packages]
 
